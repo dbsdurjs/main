@@ -84,9 +84,6 @@ def main():
             df = pd.read_csv(os.path.join(dataset_dir, fname))
             if 'input' in df.columns:
                 all_questions.extend(df['input'].dropna().tolist())
-    
-    # 군사 데이터 제외
-    # all_questions = all_questions[2000:]
 
     # Tokenize sentences
     encoded_input = tokenizer(all_questions, padding=True, truncation=True, return_tensors='pt')
