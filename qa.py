@@ -6,12 +6,19 @@ import matplotlib.pyplot as plt
 from transformers import AutoTokenizer, AutoModel
 import torch
 import numpy as np
+from sentence_transformers import SentenceTransformer
 
-dataset_dir = './dataset/QA'
+
+dataset_dir = '../dataset/QA'
+# domain_labels = [
+#     "Military Strategy", "Weapon Systems", "Military Organization", "Military Law", "Military History",  # Defense Domain, 
+#     "Medicine", "Law", "Economics", "Science", "IT",                                              # Non-Defense Domain
+#     "Daily Knowledge", "Basic Knowledge", "Difficulty"      # Noise Data
+# ]
 domain_labels = [
-    "Military Strategy", "Weapon Systems", "Military Organization", "Military Law", "Military History",  # Defense Domain
-    "Medicine", "Law", "Economics", "Science", "IT",                                              # Non-Defense Domain
-    "Daily Knowledge", "Basic Knowledge", "Difficulty"      # Noise Data
+    "Defense",  # Defense Domain, 
+    "Non-Defense" # Non-Defense Domain
+    #"Noise"      # Noise Data
 ]
 num_clusters = len(domain_labels)
 
@@ -57,15 +64,19 @@ def representative_questions(sentence_embeddings, labels, num_clusters, all_ques
         cluster_indices = [i for i, label in enumerate(labels) if label == cluster_id]
         if cluster_indices: 
             cluster_distances = [(idx, dist) for idx, dist in distances if idx in cluster_indices]
-            representative_idx = min(cluster_distances, key=lambda x: x[1])[0]
-            representative_questions[cluster_id] = all_questions[representative_idx]
+            representative_idx = sorted(cluster_distances, key=lambda x: x[1])[:20]
+            representative_questions[cluster_id] = [all_questions[idx] for idx, _ in representative_idx]
+   
+    unique, counts = np.unique(labels, return_counts=True)
+    cluster_counts = dict(zip(unique, counts))
 
     for cluster_id, question in representative_questions.items():
-        print(f"[Cluster {cluster_id} - {cluster_to_domain[cluster_id]}] Representative Question: {question}")
+        count = cluster_counts.get(cluster_id, 0)
+        print(f"[Cluster {cluster_id} - {cluster_to_domain[cluster_id]}] Representative Question: {question} | Number of questions: {count}")
 
 def main():
-    tokenizer = AutoTokenizer.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
-    model = AutoModel.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
+    tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    model = AutoModel.from_pretrained('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
 
     all_questions = []
     for fname in os.listdir(dataset_dir):
@@ -73,6 +84,9 @@ def main():
             df = pd.read_csv(os.path.join(dataset_dir, fname))
             if 'input' in df.columns:
                 all_questions.extend(df['input'].dropna().tolist())
+    
+    # 군사 데이터 제외
+    # all_questions = all_questions[2000:]
 
     # Tokenize sentences
     encoded_input = tokenizer(all_questions, padding=True, truncation=True, return_tensors='pt')
@@ -86,9 +100,6 @@ def main():
     labels = kmeans.fit_predict(sentence_embeddings)
 
     cluster_to_domain = {i: domain_labels[i] for i in range(num_clusters)}
-
-    # for _, (question, label) in enumerate(zip(all_questions, labels)):
-    #     print(f"[Cluster {label}] {question}")
 
     visualize_clusters(sentence_embeddings, labels, num_clusters, cluster_to_domain)
     representative_questions(sentence_embeddings, labels, num_clusters, all_questions, cluster_to_domain, kmeans)
