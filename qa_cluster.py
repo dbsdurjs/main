@@ -4,10 +4,8 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import PCA
 import matplotlib.pyplot as plt
 from transformers import AutoTokenizer, AutoModel
-import torch
+import torch, json
 import numpy as np
-from sentence_transformers import SentenceTransformer
-
 
 dataset_dir = '../dataset/QA'
 # domain_labels = [
@@ -48,6 +46,31 @@ def visualize_clusters(sentence_embeddings, labels, num_clusters, cluster_to_dom
     plt.show()
 
 def representative_questions(sentence_embeddings, labels, num_clusters, all_questions, cluster_to_domain, kmeans):
+    # Defense 클러스터 ID 찾기
+    defense_cluster_ids = [cid for cid in cluster_to_domain if cluster_to_domain[cid] == "Defense"]
+    
+    if not defense_cluster_ids:
+        print("Defense 클러스터를 찾지 못했습니다.")
+        return
+    
+    # Defense 클러스터에 속한 모든 질문 인덱스 수집
+    defense_indices = [i for i, label in enumerate(labels) if label in defense_cluster_ids]
+    
+    # {prompt: question} 형식으로 저장
+    defense_data = [all_questions[i] for i in defense_indices]  # 키를 'prompt'로 맞춤 (질문이 input이므로)
+    
+    file_name = 'defense_questions_snunlp.txt'
+    # TXT 파일로 저장 (각 dict를 JSON 문자열로 한 줄씩)
+    with open(file_name, 'w', encoding='utf-8') as f:
+        for item in defense_data:
+            f.write(json.dumps(item, ensure_ascii=False) + '\n')
+    
+    print(f"Defense 클러스터 질문 {len(defense_data)}개가 {file_name}에 저장되었습니다.")
+
+#-------------------------------------------------------------------------------------------------------------------------------
+# 평가 데이터가 적기 때문에 우선은 클러스터링 된 데이터들을 모두 사용
+# 대표 질문들을 사용하기 위한 코드
+
     cluster_centers = kmeans.cluster_centers_
 
     # 각 질문과 클러스터 중심 간의 거리 계산
@@ -73,10 +96,11 @@ def representative_questions(sentence_embeddings, labels, num_clusters, all_ques
     for cluster_id, question in representative_questions.items():
         count = cluster_counts.get(cluster_id, 0)
         print(f"[Cluster {cluster_id} - {cluster_to_domain[cluster_id]}] Representative Question: {question} | Number of questions: {count}")
+#-------------------------------------------------------------------------------------------------------------------------------
 
 def main():
-    tokenizer = AutoTokenizer.from_pretrained('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
-    model = AutoModel.from_pretrained('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    tokenizer = AutoTokenizer.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
+    model = AutoModel.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
 
     all_questions = []
     for fname in os.listdir(dataset_dir):
