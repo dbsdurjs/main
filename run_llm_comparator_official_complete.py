@@ -25,7 +25,10 @@ print("=" * 80)
 
 # === 1. 서비스 계정 키로 인증 ===
 print("\n[1단계] Vertex AI 인증")
+#################################
 key_path = '/home/gpuadmin/kim/llm_com/eastern-gravity-477106-i5-ceb9d33525f4.json'
+#본인 키 json 파일 경로로 수정!
+#################################
 
 if not os.path.exists(key_path):
     raise FileNotFoundError(f"키 파일을 찾을 수 없음: {key_path}")
@@ -39,17 +42,21 @@ print("  ✓ 인증 완료")
 # === 2. Vertex AI 초기화 ===
 print("\n[2단계] Vertex AI 초기화")
 vertexai.init(
-    project="eastern-gravity-477106-i5",
-    location="us-central1",
+    #################################
+    project="eastern-gravity-477106-i5", #본인 json 파일 참고
+    #################################
+    location="us-central1", #유지
     credentials=credentials
 )
 print("  ✓ 초기화 완료")
 
 # === 3. 데이터 로드 ===
 print("\n[3단계] 데이터 로드")
+#################################
 llm1_file = "/home/gpuadmin/kim/llm_com/llm_comparison_data/llm1_comparator_20251103_033057.json"
 llm2_file = "/home/gpuadmin/kim/llm_com/llm_comparison_data/llm2_comparator_20251103_043303.json"
-
+#본인 디렉토리 경로로 변경!! 파일은 github에 있음
+#################################
 with open(llm1_file, 'r', encoding='utf-8') as f:
     llm1_data = json.load(f)
 
@@ -100,13 +107,11 @@ print("  ✓ Judge, Bulletizer, Clusterer 준비 완료")
 # === 7. LLM Comparator 실행 ===
 print("\n[7단계] LLM Comparator 실행 (공식 클러스터링 포함)")
 print(f"  - 총 질문 수: {len(inputs)}개")
-print(f"  - 예상 시간: 20-30분")
 print(f"\n  ⏰ 시작 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
 start_time = datetime.now()
 
 try:
-    # LLM Comparator 공식 comparison.run() 사용
     comparison_result = comparison.run(
         inputs,
         judge,
@@ -130,7 +135,10 @@ except Exception as e:
 
 # === 8. 결과 저장 ===
 print("\n[8단계] 결과 저장")
+#################################
 output_dir = "/home/gpuadmin/kim/llm_com/llm_comparison_results"
+#본인 경로로 변경
+#################################
 os.makedirs(output_dir, exist_ok=True)
 
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
