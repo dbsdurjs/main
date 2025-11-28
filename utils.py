@@ -1,78 +1,63 @@
-import torch
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
+from __future__ import annotations
+from __future__ import annotations
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Utils for LLM Comparator scripts."""
+
+from collections.abc import Sequence
+import re
+from typing import Optional
+import xml.etree.ElementTree as ET
+
 import numpy as np
-import csv
-from transformers import AutoTokenizer, AutoModel
 
-def run_model():
-    tokenizer = AutoTokenizer.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
-    model = AutoModel.from_pretrained('snunlp/KR-SBERT-V40K-klueNLI-augSTS')
+from llm_comparator import _logging
 
-    return tokenizer, model
+_logger = _logging.logger
 
-def mean_pooling(model_output, attention_mask):
-    token_embeddings = model_output[0] #First element of model_output contains all token embeddings
-    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
-def visualize_clusters(sentence_embeddings, labels, num_clusters, cluster_to_domain):
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(sentence_embeddings.detach().cpu().numpy())
+def extract_xml_part(raw_output: str, tag_name: str) -> Optional[ET.Element]:
+  """Find parts where <{tag_name}> is in the XML-formatted output."""
+  xml_output = re.search(
+      rf'<{tag_name}>(.*?)</{tag_name}>', raw_output, flags=re.DOTALL
+  )
+  if not xml_output:
+    _logger.warning('Invalid output with missing <%s> tags', tag_name)
+    return None
 
-    plt.figure(figsize=(8, 6))
-    scatter = plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels, cmap='tab20', alpha=0.7)
-    plt.title('KMeans Clustering of Questions (PCA Visualization)')
-    plt.xlabel('PCA Component 1')
-    plt.ylabel('PCA Component 2')
-    handles, _ = scatter.legend_elements()
-    plt.legend(handles, [cluster_to_domain[i] for i in range(num_clusters)], 
-            title="Domains", 
-            loc='center left', 
-            bbox_to_anchor=(1.05, 0.5),  # 플롯 바깥 오른쪽에 배치
-            borderaxespad=0.)
-    plt.tight_layout()
-    plt.savefig('kmeans_clusters.png')
-    plt.show()
+  try:
+    parsed_xml = ET.fromstring(xml_output.group(0))
+    return parsed_xml
+  except ET.ParseError as e:
+    _logger.warning('Invalid format: %s (%s)', e, xml_output)
+    return None
 
-def visualize_embeddings_pca(sentence_embeddings, title='Embeddings PCA'):
-    pca = PCA(n_components=2)
-    X_pca = pca.fit_transform(sentence_embeddings)
 
-    plt.figure(figsize=(8, 6))
-    plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.7, s=10)
-    plt.title(title)
-    plt.xlabel('PCA Component 1')
-    plt.ylabel('PCA Component 2')
-    plt.tight_layout()
-    plt.savefig('embeddings_pca.png', dpi=200)
-    plt.show()
+def cosine_similarity_between_matrices(
+    a_matrix: Sequence[Sequence[float]], b_matrix: Sequence[Sequence[float]]
+) -> Sequence[Sequence[float]]:
+  """Find the cosine similarity between two matrices."""
 
-def read_prompts_from_csv(file_path):
-    prompts = []
-    with open(file_path, newline='', encoding='utf-8') as csvfile:
-        reader = csv.reader(csvfile)
-        for row in reader:
-            prompts.append(row[0])
-    return prompts
+  # Normalize each row vector in A and B.
+  a_norms = np.linalg.norm(a_matrix, axis=1, keepdims=True)
+  b_norms = np.linalg.norm(b_matrix, axis=1, keepdims=True)
 
-def read_prompts_from_txt(file_path):
-    prompts = []
-    with open(file_path, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line.startswith('"') and line.endswith('"'):
-                line = line[1:-1]
-            prompts.append(line.strip())
-                
-    return prompts
+  a_normalized = a_matrix / a_norms
+  b_normalized = b_matrix / b_norms
 
-def encode_texts(texts):
-    tokenizer, model = run_model()
-    enc = tokenizer(texts, padding=True, truncation=True, return_tensors='pt')
-    with torch.no_grad():
-        out = model(**enc)
-    keywords_emb = mean_pooling(out, enc['attention_mask']).cpu().numpy()
-    keywords_emb = keywords_emb / np.linalg.norm(keywords_emb, axis=1, keepdims=True)
+  # Compute cosine similarity.
+  similarity_matrix = np.dot(a_normalized, b_normalized.T)
 
-    return keywords_emb
+  return similarity_matrix.tolist()
