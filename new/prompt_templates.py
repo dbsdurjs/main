@@ -159,12 +159,25 @@ DEFAULT_PROMPT_TEMPLATE_FOR_CLUSTERING = """이 작업에서는 한 텍스트가
 - 너무 유사한 구조를 사용하는 많은 그룹 제목을 갖지 마세요(예: 항상 "더 형용사임"이라고 말하지 말고 때로는 "제공함" 또는 "제안함"으로 시작하세요).
 - 각 제목은 소문자 동사(예: "~임...", "~임..." 아님) 또는 "~하지 않음" 다음에 동사로 시작해야 합니다.
 
-출력 형식은 다음과 같습니다:
+다음 XML 형식으로 정확히 {num_clusters}개의 제목을 제공하세요.
+반드시 <groups>로 시작하고 </groups>로 끝나야 합니다.
+각 제목은 <group> 태그로 감싸야 합니다.
+
+예시 (8개 그룹인 경우):
 <groups>
-{few_examples}
+  <group>더 잘 조직됨</group>
+  <group>더 정확함</group>
+  <group>단계별 절차 제공</group>
+  <group>부정확한 정보를 제공하지 않음</group>
+  <group>다양한 옵션 제공</group>
+  <group>창의적인 솔루션 제공</group>
+  <group>다양한 요소 고려</group>
+  <group>부적절한 질문에 답변 거부</group>
 </groups>
 
-{num_clusters}개 그룹의 제목은:"""
+위 형식을 정확히 따라 {num_clusters}개 그룹의 제목을 생성하세요.
+반드시 <groups>로 시작하고 </groups>로 끝내야 합니다:
+"""
 
 
 DEFAULT_FEW_EXAMPLES_FOR_CLUSTERING = [
