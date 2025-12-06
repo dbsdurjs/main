@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Custom Model Helper - MAX_TOKENS 문제 해결
-기본 256 토큰 → 2048 토큰으로 증가
+기본 256 토큰 → 2048 -> 8192토큰
 """
 
 import time
@@ -13,7 +13,7 @@ import tqdm.auto
 
 
 MAX_NUM_RETRIES = 5
-DEFAULT_MAX_OUTPUT_TOKENS = 2048  # ✅ 256 → 2048로 증가
+DEFAULT_MAX_OUTPUT_TOKENS = 8192  # ✅ 256 → 8192 증가
 BATCH_EMBED_SIZE = 100
 
 
